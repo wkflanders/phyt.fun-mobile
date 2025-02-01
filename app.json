@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "phyt.fun-mobile",
-    "slug": "phyt.fun-mobile",
+    "name": "phyt-fun",
+    "slug": "phyt-fun",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -36,6 +36,15 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "3320c74b-0a91-457d-996e-733408dbd36b"
+      }
+    },
+    "owner": "wkflanders"
   }
 }
