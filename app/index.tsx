@@ -55,8 +55,8 @@ export default function Index() {
                         <FunctionalButton
                             title="Login"
                             handlePress={() => login({ provider: 'google' })}
-                            containerStyles={styles.button}
-                            textStyles={styles.buttonText}
+                            containerStyle={styles.button}
+                            textStyle={styles.buttonText}
                             isLoading={!isReady}
                         />
                     </View>
