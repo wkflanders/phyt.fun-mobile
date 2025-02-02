@@ -1,39 +1,62 @@
-import { Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 
 interface FunctionalButtonProps {
     title: string;
     handlePress: () => void;
-    containerStyles?: string;
-    textStyles?: string;
+    containerStyles?: object;
+    textStyles?: object;
     isLoading: boolean;
 }
 
 export const FunctionalButton = ({
     title,
     handlePress,
-    containerStyles,
-    textStyles,
+    containerStyles = {},
+    textStyles = {},
     isLoading,
 }: FunctionalButtonProps) => {
     return (
         <TouchableOpacity
             onPress={handlePress}
             activeOpacity={0.7}
-            className={`bg-phyt_red min-h-[40px] w-1/2 flex flex-row justify-center items-center ${containerStyles} ${isLoading ? "opacity-50" : ""}`}
+            style={[
+                styles.button,
+                isLoading && styles.disabled,
+                containerStyles
+            ]}
             disabled={isLoading}
         >
-            <Text className={`text-white font-incsemibold text-xl ${textStyles}`}>
-                {title}
-            </Text>
+            <Text style={[styles.text, textStyles]}>{title}</Text>
 
             {isLoading && (
-                <ActivityIndicator
-                    animating={isLoading}
-                    color="#fff"
-                    size="small"
-                    className="ml-2"
-                />
+                <ActivityIndicator animating={isLoading} color="#fff" size="small" style={styles.loader} />
             )}
         </TouchableOpacity>
     );
 };
+
+const styles = StyleSheet.create({
+    button: {
+        backgroundColor: '#FE205D',
+        minHeight: 40,
+        width: '50%',
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderRadius: 8,
+    },
+    disabled: {
+        opacity: 0.5,
+    },
+    text: {
+        color: 'white',
+        fontFamily: 'Inter-SemiBold',
+        fontSize: 20,
+    },
+    loader: {
+        marginLeft: 8,
+    },
+});
+
+export default FunctionalButton;
