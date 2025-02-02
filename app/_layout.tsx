@@ -5,8 +5,6 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
-import { baseSepolia } from 'viem/chains';
-
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -51,7 +49,6 @@ export default function RootLayout() {
     <PrivyProvider
       appId={'cm466mv4o01wfkhkse3g9gyhr'}
       clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
-      supportedChains={[baseSepolia]}
     >
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
