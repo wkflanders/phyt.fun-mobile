@@ -1,4 +1,4 @@
-import { PrivyProvider } from '@privy-io/expo';
+import { PrivyProvider, PrivyElements } from '@privy-io/expo';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -58,6 +58,7 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding" />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       </Stack>
+      <PrivyElements />
     </PrivyProvider >
   );
 }
