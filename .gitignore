@@ -37,6 +37,18 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+# iOS build artifacts
+ios/build/
+ios/Pods/
+ios/DerivedData/
 
-/ios
-/android
+# Android build artifacts
+android/app/build/
+android/build/
+
+# IDE files
+.vscode/
+.idea/
+
+# macOS files
+.DS_Store
