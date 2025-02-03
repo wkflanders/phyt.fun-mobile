@@ -1,14 +1,48 @@
-import { PrivyProvider, PrivyElements } from '@privy-io/expo';
+import { PrivyProvider, PrivyElements, usePrivy } from '@privy-io/expo';
+import { Stack, useRouter } from 'expo-router';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { ActivityIndicator, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { baseSepolia } from 'viem/chains';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+const StackLayout = () => {
+  const { user, isReady } = usePrivy();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isReady) {
+      if (user) {
+        router.replace('/(tabs)/home');
+      } else {
+        router.replace('/');
+      }
+    }
+  }, [isReady, user]);
+
+  if (!isReady) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  } else {
+    return (
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
+    );
+  }
+
+  return;
+};
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -49,12 +83,16 @@ export default function RootLayout() {
     <PrivyProvider
       appId={'cm466mv4o01wfkhkse3g9gyhr'}
       clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
+      supportedChains={[baseSepolia]}
+      config={{
+        embedded: {
+          ethereum: {
+            createOnLogin: 'all-users',
+          }
+        }
+      }}
     >
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="onboard" />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      </Stack>
+      <StackLayout />
       <PrivyElements />
     </PrivyProvider >
   );
