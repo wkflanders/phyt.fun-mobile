@@ -11,28 +11,17 @@ export default function Index() {
     const { isReady } = usePrivy();
 
     const { login } = useLoginWithOAuth({
-        onSuccess(user, isNewUser) {
-            if (isNewUser) {
-                router.push('/onboard');
-            } else {
-                router.push('/(tabs)/home');
-            }
+        onSuccess() {
+            router.push('/(tabs)/home');
         },
-        onError: (err) => {
-            console.error('Login error:', err);
+        onError: (err: any) => {
+            if (err.message.contains('was cancelled')) {
+                return;
+            } else {
+                console.error('Login error:', err);
+            }
         }
     });
-
-    const handleLogin = async () => {
-        try {
-            await login({ provider: 'google' });
-        } catch (error) {
-            if (error instanceof Error && error.message === "OAuth was cancelled") {
-                return;
-            }
-            console.error("Login failed:", error);
-        }
-    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -54,7 +43,10 @@ export default function Index() {
                     <View style={styles.buttonContainer}>
                         <FunctionalButton
                             title="Login"
-                            handlePress={() => login({ provider: 'google' })}
+                            handlePress={() => login({
+                                provider: 'google',
+                                disableSignup: true,
+                            })}
                             containerStyle={styles.button}
                             textStyle={styles.buttonText}
                             isLoading={!isReady}
