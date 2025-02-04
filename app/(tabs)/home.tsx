@@ -8,6 +8,8 @@ import {
     HKWorkoutTypeIdentifier,
     HKWorkoutActivityType,
     HKQuantityTypeIdentifier,
+    HKAuthorizationRequestStatus,
+    HKWorkoutRouteTypeIdentifier
 } from '@kingstinct/react-native-healthkit';
 import { type EnergyUnit, LengthUnit } from '@kingstinct/react-native-healthkit';
 import { usePrivy } from '@privy-io/expo';
@@ -22,11 +24,15 @@ export default function Home() {
     const [authorizationStatus, requestAuthorization] = useHealthkitAuthorization([
         HKQuantityTypeIdentifier.heartRate,
         HKQuantityTypeIdentifier.distanceWalkingRunning,
+        HKWorkoutRouteTypeIdentifier,
         HKWorkoutTypeIdentifier
     ]);
     const [sendingData, setSendingData] = useState(false);
     const [initialDataSent, setInitialDataSent] = useState(false);
-    const { workouts, loading, error } = usePastWorkouts();
+    const shouldQueryWorkouts = authorizationStatus === HKAuthorizationRequestStatus.unnecessary;
+    const { workouts, loading, error } = usePastWorkouts({
+        enabled: shouldQueryWorkouts,
+    });
     const [workoutAnchor, setWorkoutAnchor] = useState<string>('');
     const isFocused = useIsFocused();
 
@@ -35,10 +41,16 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        if (authorizationStatus === null) {
-            void requestAuthorization();
-        }
-    }, [authorizationStatus, requestAuthorization]);
+        (async () => {
+            console.log('Requesting HealthKit authorization...');
+            try {
+                await requestAuthorization();
+                console.log('Requested HealthKit authorization');
+            } catch (error) {
+                console.error('Error requesting HealthKit authorization:', error);
+            }
+        })();
+    }, []);
 
     useEffect(() => {
         async function sendInitialWorkouts() {
