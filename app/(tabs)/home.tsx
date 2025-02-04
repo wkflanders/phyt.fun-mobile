@@ -2,7 +2,6 @@ import React from 'react';
 import { usePrivy } from '@privy-io/expo';
 import { useIsFocused } from '@react-navigation/native';
 import { StyleSheet, View, Image } from 'react-native';
-import { images } from '@/constants';
 import { EchoLogo } from '@/components/EchoLogo';
 
 export default function Home() {
