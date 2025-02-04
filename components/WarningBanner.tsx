@@ -20,7 +20,7 @@ export const WarningBanner: React.FC<WarningBannerProps> = ({ visible }: Warning
 
     return (
         <Animated.View style={[styles.banner, { transform: [{ translateY }] }]}>
-            <Text style={styles.text}>Data Sending Enabled</Text>
+            <Text style={styles.text}>Your run workouts are now being tracked</Text>
         </Animated.View>
     );
 };
