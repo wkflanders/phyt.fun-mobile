@@ -12,7 +12,7 @@ interface PastWorkoutsReturn {
  * Get prior prob. distribution here
  */
 
-export function usePastWorkouts(): PastWorkoutsReturn {
+export function usePastWorkouts({ enabled }: { enabled: boolean; }): PastWorkoutsReturn {
     const [workouts, setWorkouts] = useState<HKWorkout[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<Error | null>(null);
@@ -36,12 +36,15 @@ export function usePastWorkouts(): PastWorkoutsReturn {
             } catch (err) {
                 console.error('Error fetching workouts:', err);
                 setError(err as Error);
-            } finally {
-                setLoading(false);
             }
         }
-        void fetchWorkouts();
-    }, []);
+        if (enabled) {
+            void fetchWorkouts();
+        } else {
+            setLoading(false);
+            setWorkouts([]);
+        }
+    }, [enabled]);
 
     return {
         workouts,
