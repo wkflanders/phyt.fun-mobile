@@ -32,7 +32,7 @@ export default function Home() {
 
     const toggleDataSending = useCallback(() => {
         setSendingData(prev => !prev);
-    }, [sendingData]);
+    }, []);
 
     useEffect(() => {
         if (authorizationStatus === null) {
@@ -101,9 +101,11 @@ export default function Home() {
     }
 
     if (error) {
-        <View style={{ padding: 16, backgroundColor: phytColors.background }}>
-            <Text style={{ color: '#ff4444' }}>Error: {error.message}</Text>
-        </View>;
+        return (
+            <View style={{ padding: 16, backgroundColor: phytColors.background }}>
+                <Text style={{ color: '#ff4444' }}>Error: {error.message}</Text>
+            </View>
+        );
     }
 
     return (
