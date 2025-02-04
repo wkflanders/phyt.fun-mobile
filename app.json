@@ -39,7 +39,12 @@
         }
       ],
       [
-        "@kingstinct/react-native-healthkit"
+        "@kingstinct/react-native-healthkit",
+        {
+          "NSHealthShareUsageDescription": "Allow Phyt to track your runs and run data. This is required to be eligible for the 'runner' role",
+          "NSHealthUpdateUsageDescription": true, 
+          "background": true
+        }
       ]
     ],
     "experiments": {
