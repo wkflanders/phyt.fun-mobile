@@ -37,6 +37,9 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
+      ],
+      [
+        "@kingstinct/react-native-healthkit"
       ]
     ],
     "experiments": {
