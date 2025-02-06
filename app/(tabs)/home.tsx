@@ -15,6 +15,7 @@ import { type EnergyUnit, LengthUnit } from '@kingstinct/react-native-healthkit'
 import { usePrivy } from '@privy-io/expo';
 import { useIsFocused } from '@react-navigation/native';
 import { usePastWorkouts } from '@/hooks/usePastWorkouts';
+import { useSendWorkout } from '@/hooks/useSendWorkout';
 import { EchoLogo } from '@/components/EchoLogo';
 import { WarningBanner } from '@/components/WarningBanner';
 import { Loading } from '@/components/Loading';
@@ -29,10 +30,12 @@ export default function Home() {
     ]);
     const [sendingData, setSendingData] = useState(false);
     const [initialDataSent, setInitialDataSent] = useState(false);
+    const [requestSend, setRequestSend] = useState(false);
     const shouldQueryWorkouts = authorizationStatus === HKAuthorizationRequestStatus.unnecessary;
     const { workouts, loading, error } = usePastWorkouts({
         enabled: shouldQueryWorkouts,
     });
+    const sendWorkout = useSendWorkout();
     const [workoutAnchor, setWorkoutAnchor] = useState<string>('');
     const isFocused = useIsFocused();
 
@@ -42,34 +45,33 @@ export default function Home() {
 
     useEffect(() => {
         (async () => {
-            console.log('Requesting HealthKit authorization...');
-            try {
-                await requestAuthorization();
-                console.log('Requested HealthKit authorization');
-            } catch (error) {
-                console.error('Error requesting HealthKit authorization:', error);
+            if (authorizationStatus === 0 || authorizationStatus === 1) {
+                try {
+                    await requestAuthorization();
+                } catch (error) {
+                    console.error('Error requesting HealthKit authorization:', error);
+                }
             }
         })();
-    }, []);
+    }, [authorizationStatus]);
 
     useEffect(() => {
         async function sendInitialWorkouts() {
             if (workouts.length > 0) {
-                // Replace this with your actual API call:
-                console.log('Sending previous workouts:', workouts);
-                // e.g., await fetch(API_URL + '/sendWorkouts', { method: 'POST', body: JSON.stringify(workouts) });
+                workouts.forEach((workout) => {
+                    sendWorkout.mutate(workout);
+                });
                 setInitialDataSent(true);
             }
         }
         if (
-            authorizationStatus &&
-            authorizationStatus !== null &&
-            !initialDataSent &&
-            workouts.length > 0
+            (authorizationStatus &&
+                authorizationStatus !== null &&
+                workouts.length > 0) && (!initialDataSent || requestSend)
         ) {
             void sendInitialWorkouts();
         }
-    }, [authorizationStatus, workouts, initialDataSent]);
+    }, [authorizationStatus, workouts, initialDataSent, requestSend]);
 
     useEffect(() => {
         let unsubscribe: (() => Promise<boolean>) | undefined;
@@ -112,6 +114,11 @@ export default function Home() {
         return <Loading />;
     }
 
+    if (sendWorkout.isError) {
+        setSendingData(false);
+        // Add UI for fail to send data
+    }
+
     if (error) {
         return (
             <View style={{ padding: 16, backgroundColor: phytColors.background }}>
@@ -121,15 +128,17 @@ export default function Home() {
     }
 
     return (
-        <View style={styles.container}>
-            <WarningBanner visible={sendingData} />
+        <>
+            <View style={styles.container}>
+                <WarningBanner visible={sendingData} />
 
-            <View style={styles.content}>
-                <TouchableOpacity onPress={toggleDataSending}>
-                    <EchoLogo active={isFocused && sendingData} style={styles.logo} />
-                </TouchableOpacity>
+                <View style={styles.content}>
+                    <TouchableOpacity onPress={toggleDataSending}>
+                        <EchoLogo active={isFocused && sendingData} style={styles.logo} />
+                    </TouchableOpacity>
+                </View>
             </View>
-        </View>
+        </>
     );
 }
 
