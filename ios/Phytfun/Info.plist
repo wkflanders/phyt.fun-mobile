@@ -60,7 +60,7 @@
     <key>NSHealthShareUsageDescription</key>
     <string>Allow Phyt to track your runs and run data. This is required to be eligible for the 'runner' role</string>
     <key>NSHealthUpdateUsageDescription</key>
-    <true/>
+    <string>Allow Phyt to update your health data.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to access your microphone</string>
     <key>NSPhotoLibraryUsageDescription</key>

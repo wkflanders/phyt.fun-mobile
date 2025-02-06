@@ -42,7 +42,7 @@
         "@kingstinct/react-native-healthkit",
         {
           "NSHealthShareUsageDescription": "Allow Phyt to track your runs and run data. This is required to be eligible for the 'runner' role",
-          "NSHealthUpdateUsageDescription": true, 
+          "NSHealthUpdateUsageDescription": "Allow Phyt to update your health data.",
           "background": true
         }
       ]
