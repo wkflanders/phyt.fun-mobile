@@ -3,11 +3,26 @@ import { StyleSheet, View, Image, Modal, Text, TouchableOpacity, ScrollView } fr
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { images } from '@/constants';
-import { usePrivy } from '@privy-io/expo';
+import {
+    useHealthkitAuthorization,
+    queryWorkoutSamplesWithAnchor,
+    subscribeToChanges,
+    HKWorkoutTypeIdentifier,
+    HKWorkoutActivityType,
+    HKQuantityTypeIdentifier,
+    HKAuthorizationRequestStatus,
+    HKWorkoutRouteTypeIdentifier
+} from '@kingstinct/react-native-healthkit'; import { usePrivy } from '@privy-io/expo';
 
 export default function Settings() {
     const { logout } = usePrivy();
     const [isModalVisible, setModalVisible] = useState(true);
+    const [authorizationStatus, requestAuthorization] = useHealthkitAuthorization([
+        HKQuantityTypeIdentifier.heartRate,
+        HKQuantityTypeIdentifier.distanceWalkingRunning,
+        HKWorkoutRouteTypeIdentifier,
+        HKWorkoutTypeIdentifier
+    ]);
     const router = useRouter();
 
     useFocusEffect(
@@ -38,7 +53,10 @@ export default function Settings() {
                         </TouchableOpacity>
                     </View>
                     <ScrollView contentContainerStyle={styles.scrollContent} style={styles.scrollView}>
-                        {/* Additional scrollable content or options can be added here */}
+                        <View style={styles.settingsItem}>
+                            <Text style={styles.settingsText}>Your HealthKit Authorization:</Text>
+                            <Text style={styles.settingsText}>{authorizationStatus}</Text>
+                        </View>
                     </ScrollView>
                     <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
                         <Text style={styles.logoutButtonText}>Logout</Text>
@@ -101,6 +119,13 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         flexGrow: 1,
+    },
+    settingsItem: {
+        width: 200,
+    },
+    settingsText: {
+        color: '#fff',
+        fontSize: 16,
     },
     logoutButton: {
         backgroundColor: phytColors.accent,
