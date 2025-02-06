@@ -5,7 +5,7 @@ interface WarningBannerProps {
     visible: boolean;
 }
 
-const bannerHeight = 50;
+const bannerHeight = 80;
 
 export const WarningBanner: React.FC<WarningBannerProps> = ({ visible }: WarningBannerProps) => {
     const translateY = useRef(new Animated.Value(-bannerHeight)).current;
@@ -32,6 +32,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: bannerHeight,
+        paddingTop: 30,
         backgroundColor: '#ff4444', // destructive red
         justifyContent: 'center',
         alignItems: 'center',
