@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
-
+import { StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
 import {
     useHealthkitAuthorization,
     queryWorkoutSamplesWithAnchor,
@@ -19,6 +18,11 @@ import { useSendWorkout } from '@/hooks/useSendWorkout';
 import { EchoLogo } from '@/components/EchoLogo';
 import { WarningBanner } from '@/components/WarningBanner';
 import { Loading } from '@/components/Loading';
+import {
+    requestNotificationPermissions,
+    sendWorkoutSuccessNotification,
+    sendWorkoutErrorNotification
+} from '@/lib/notifications';
 
 export default function Home() {
     const { user, isReady } = usePrivy();
@@ -31,6 +35,8 @@ export default function Home() {
     const [sendingData, setSendingData] = useState(false);
     const [initialDataSent, setInitialDataSent] = useState(false);
     const [requestSend, setRequestSend] = useState(false);
+    const [showErrorBanner, setShowErrorBanner] = useState(false);
+    const [notificationsPermission, setNotificationsPermission] = useState(false);
     const shouldQueryWorkouts = authorizationStatus === HKAuthorizationRequestStatus.unnecessary;
     const { workouts, loading, error } = usePastWorkouts({
         enabled: shouldQueryWorkouts,
@@ -39,9 +45,30 @@ export default function Home() {
     const [workoutAnchor, setWorkoutAnchor] = useState<string>('');
     const isFocused = useIsFocused();
 
-    const toggleDataSending = useCallback(() => {
-        setSendingData(prev => !prev);
+    // Request notification permissions on mount
+    useEffect(() => {
+        async function setupNotifications() {
+            const hasPermission = await requestNotificationPermissions();
+            setNotificationsPermission(hasPermission);
+
+            if (!hasPermission) {
+                Alert.alert(
+                    'Notifications Disabled',
+                    'Enable notifications to receive updates about your workout syncs.',
+                    [{ text: 'OK' }]
+                );
+            }
+        }
+
+        setupNotifications();
     }, []);
+
+    const toggleDataSending = useCallback(() => {
+        if (sendWorkout.isError) {
+            sendWorkout.reset();
+        }
+        setSendingData(prev => !prev);
+    }, [sendWorkout]);
 
     useEffect(() => {
         (async () => {
@@ -58,12 +85,22 @@ export default function Home() {
     useEffect(() => {
         async function sendInitialWorkouts() {
             if (workouts.length > 0) {
-                workouts.forEach((workout) => {
-                    sendWorkout.mutate(workout);
-                });
+                for (const workout of workouts) {
+                    try {
+                        await sendWorkout.mutateAsync(workout);
+                        if (notificationsPermission) {
+                            await sendWorkoutSuccessNotification(workout);
+                        }
+                    } catch (error) {
+                        if (notificationsPermission) {
+                            await sendWorkoutErrorNotification(error instanceof Error ? error.message : undefined);
+                        }
+                    }
+                }
                 setInitialDataSent(true);
             }
         }
+
         if (
             (authorizationStatus &&
                 authorizationStatus !== null &&
@@ -71,7 +108,7 @@ export default function Home() {
         ) {
             void sendInitialWorkouts();
         }
-    }, [authorizationStatus, workouts, initialDataSent, requestSend]);
+    }, [authorizationStatus, workouts, initialDataSent, requestSend, notificationsPermission]);
 
     useEffect(() => {
         let unsubscribe: (() => Promise<boolean>) | undefined;
@@ -79,22 +116,35 @@ export default function Home() {
         async function subscribeToWorkoutChanges() {
             unsubscribe = await subscribeToChanges(HKWorkoutTypeIdentifier, async () => {
                 try {
-                    // Call queryWorkoutSamplesWithAnchor with a single options object
                     const res = await queryWorkoutSamplesWithAnchor({
                         limit: 10,
                         anchor: workoutAnchor,
                         energyUnit: 'kcal' as EnergyUnit,
                         distanceUnit: 'mi' as LengthUnit,
                     });
-                    // Update anchor for next call
                     setWorkoutAnchor(res.newAnchor);
                     const newRunningWorkouts = res.samples.filter(
                         (w) => w.workoutActivityType === HKWorkoutActivityType.running
                     );
-                    // Send these new workouts to your backend...
-                    console.log('New workouts to send:', newRunningWorkouts);
+
+                    // Send workouts and notify
+                    for (const workout of newRunningWorkouts) {
+                        try {
+                            await sendWorkout.mutateAsync(workout);
+                            if (notificationsPermission) {
+                                await sendWorkoutSuccessNotification(workout);
+                            }
+                        } catch (error) {
+                            if (notificationsPermission) {
+                                await sendWorkoutErrorNotification(error instanceof Error ? error.message : undefined);
+                            }
+                        }
+                    }
                 } catch (err) {
                     console.error('Error querying new workout samples:', err);
+                    if (notificationsPermission) {
+                        await sendWorkoutErrorNotification('Failed to query new workouts');
+                    }
                 }
             });
         }
@@ -108,15 +158,22 @@ export default function Home() {
                 void unsubscribe();
             }
         };
-    }, [sendingData, workoutAnchor]);
+    }, [sendingData, workoutAnchor, notificationsPermission]);
+
+    useEffect(() => {
+        if (sendWorkout.isError) {
+            setSendingData(false);
+            setShowErrorBanner(true);
+            if (notificationsPermission) {
+                void sendWorkoutErrorNotification(
+                    sendWorkout.error instanceof Error ? sendWorkout.error.message : undefined
+                );
+            }
+        }
+    }, [sendWorkout.isError, notificationsPermission]);
 
     if (!isReady || loading) {
         return <Loading />;
-    }
-
-    if (sendWorkout.isError) {
-        setSendingData(false);
-        // Add UI for fail to send data
     }
 
     if (error) {
@@ -128,17 +185,27 @@ export default function Home() {
     }
 
     return (
-        <>
-            <View style={styles.container}>
-                <WarningBanner visible={sendingData} />
+        <View style={styles.container}>
+            <WarningBanner
+                visible={sendingData}
+                message="Your run workouts are now being tracked"
+                type="warning"
+            />
+            <WarningBanner
+                visible={showErrorBanner}
+                message={`Failed to send workout data: ${sendWorkout.error instanceof Error ? sendWorkout.error.message : 'Unknown error'
+                    }. Data tracking has stopped.`}
+                type="error"
+                duration={5000}
+                onDismiss={() => setShowErrorBanner(false)}
+            />
 
-                <View style={styles.content}>
-                    <TouchableOpacity onPress={toggleDataSending}>
-                        <EchoLogo active={isFocused && sendingData} style={styles.logo} />
-                    </TouchableOpacity>
-                </View>
+            <View style={styles.content}>
+                <TouchableOpacity onPress={toggleDataSending}>
+                    <EchoLogo active={isFocused && sendingData} style={styles.logo} />
+                </TouchableOpacity>
             </View>
-        </>
+        </View>
     );
 }
 
@@ -160,7 +227,6 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        // Add paddingTop to avoid overlap with the banner if necessary
         paddingTop: 60,
         justifyContent: 'center',
         alignItems: 'center',
