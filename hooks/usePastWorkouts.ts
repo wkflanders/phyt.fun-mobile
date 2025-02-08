@@ -23,19 +23,16 @@ export function usePastWorkouts({ enabled }: { enabled: boolean; }): PastWorkout
                 setLoading(true);
                 const data = await queryWorkoutSamples(
                     {
-                        limit: 20,
+                        limit: 0,
                         ascending: false,
                         energyUnit: 'kcal' as EnergyUnit,
-                        distanceUnit: 'mi' as LengthUnit
+                        distanceUnit: 'm' as LengthUnit,
                     }
                 );
-                const runningWorkouts = data.filter(
-                    (w) => w.workoutActivityType === HKWorkoutActivityType.running
-                );
-                return runningWorkouts;
             } catch (err) {
-                console.error('Error fetching workouts:', err);
                 setError(err as Error);
+            } finally {
+                setLoading(false);
             }
         }
         if (enabled) {
@@ -46,9 +43,5 @@ export function usePastWorkouts({ enabled }: { enabled: boolean; }): PastWorkout
         }
     }, [enabled]);
 
-    return {
-        workouts,
-        loading,
-        error
-    };
+    return { workouts, loading, error };
 }
