@@ -17,9 +17,9 @@ import {
     HKQuantityTypeIdentifier,
     HKAuthorizationRequestStatus,
     HKWorkoutRouteTypeIdentifier,
-    HKUnit,
+    type HKWorkout,
 } from '@kingstinct/react-native-healthkit';
-import { type EnergyUnit, LengthUnit } from '@kingstinct/react-native-healthkit';
+import { type EnergyUnit, type LengthUnit } from '@kingstinct/react-native-healthkit';
 import { usePrivy } from '@privy-io/expo';
 import { useIsFocused } from '@react-navigation/native';
 import { usePastWorkouts } from '@/hooks/usePastWorkouts';
@@ -28,13 +28,18 @@ import { EchoLogo } from '@/components/EchoLogo';
 import { WarningBanner } from '@/components/WarningBanner';
 import { Loading } from '@/components/Loading';
 import {
+    filterUnsyncedWorkouts,
+    addSentWorkoutIds,
+    setInitialSyncDone,
+    isInitialSyncDone,
+} from '@/lib/workoutStorage';
+import {
     requestNotificationPermissions,
+    sendInitialSyncNotification,
     sendWorkoutSuccessNotification,
     sendWorkoutErrorNotification,
 } from '@/lib/notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const WORKOUT_ANCHOR_KEY = 'workoutAnchor';
+import { router } from 'expo-router';
 
 export default function Home() {
     const { user, isReady } = usePrivy();
@@ -45,20 +50,29 @@ export default function Home() {
         HKWorkoutTypeIdentifier,
     ]);
     const [sendingData, setSendingData] = useState(false);
-    const [batchSent, setBatchSent] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [notificationsPermission, setNotificationsPermission] = useState(false);
+    const [workoutAnchor, setWorkoutAnchor] = useState<string>('');
+    const [initialSyncStatus, setInitialSyncStatus] = useState<'pending' | 'success' | 'error' | null>(null);
 
     const { workouts, loading, error } = usePastWorkouts({
         enabled: authorizationStatus === HKAuthorizationRequestStatus.unnecessary,
     });
     const sendWorkout = useSendWorkout();
     const sendBatch = useSendWorkoutsBatch();
-    const [workoutAnchor, setWorkoutAnchor] = useState<string>('');
     const isFocused = useIsFocused();
 
+    if (!isReady || loading) {
+        return <Loading />;
+    }
+
+    if (isReady && !user) {
+        return router.push('/');
+    }
+
+    // Request permissions on mount
     useEffect(() => {
-        async function setupNotifications() {
+        async function setupPermissions() {
             const hasPermission = await requestNotificationPermissions();
             setNotificationsPermission(hasPermission);
             if (!hasPermission) {
@@ -69,18 +83,10 @@ export default function Home() {
                 );
             }
         }
-        setupNotifications();
+        setupPermissions();
     }, []);
 
-    const toggleDataSending = useCallback(() => {
-        if (sendWorkout.isError) {
-            sendWorkout.reset();
-        }
-        setSendingData(prev => !prev);
-        setBatchSent(false);
-        setErrorMessage(null);
-    }, [sendWorkout]);
-
+    // Handle HealthKit authorization
     useEffect(() => {
         (async () => {
             if (
@@ -91,36 +97,64 @@ export default function Home() {
                     await requestAuthorization();
                 } catch (err) {
                     console.error('Error requesting HealthKit authorization:', err);
+                    setErrorMessage('Failed to get HealthKit authorization');
                 }
             }
         })();
     }, [authorizationStatus, requestAuthorization]);
 
+    // Initial batch sync of past workouts
     useEffect(() => {
         if (
-            authorizationStatus !== null &&
+            authorizationStatus === HKAuthorizationRequestStatus.unnecessary &&
             workouts.length > 0 &&
             sendingData &&
-            !batchSent
+            initialSyncStatus === 'pending'
         ) {
-            sendBatch.mutate(workouts, {
-                onSuccess: () => {
-                    setBatchSent(true);
-                    // Optionally you can notify the user of success.
-                },
-                onError: (err) => {
-                    setErrorMessage(err instanceof Error ? err.message : 'Batch send failed');
+            (async () => {
+                try {
+                    // Filter out already sent workouts
+                    const unsyncedWorkouts = await filterUnsyncedWorkouts(workouts);
+
+                    if (unsyncedWorkouts.length === 0) {
+                        setInitialSyncStatus('success');
+                        return;
+                    }
+
+                    if (!user) {
+                        return router.push('/');
+                    }
+
+                    // Send workouts
+                    await sendBatch.mutateAsync({ workouts: unsyncedWorkouts, userId: user.id });
+
+                    // Record sent workout IDs
+                    await addSentWorkoutIds(unsyncedWorkouts.map(w => w.uuid));
+
+                    // Check if this was initial sync
+                    const wasInitialSync = !(await isInitialSyncDone());
+                    if (wasInitialSync) {
+                        await setInitialSyncDone(true);
+                        await sendInitialSyncNotification(unsyncedWorkouts.length);
+                    }
+
+                    setInitialSyncStatus('success');
+                } catch (err) {
+                    setErrorMessage(err instanceof Error ? err.message : 'Initial sync failed');
+                    setInitialSyncStatus('error');
                     setSendingData(false);
                     if (notificationsPermission) {
-                        void sendWorkoutErrorNotification(err instanceof Error ? err.message : undefined);
+                        await sendWorkoutErrorNotification(err instanceof Error ? err.message : undefined);
                     }
-                },
-            });
+                }
+            })();
         }
-    }, [authorizationStatus, workouts, sendingData, batchSent, sendBatch, notificationsPermission]);
+    }, [authorizationStatus, workouts, sendingData, initialSyncStatus]);
 
+    // Subscribe to new workouts
     useEffect(() => {
         let unsubscribe: (() => Promise<boolean>) | undefined;
+
         async function subscribeWorkouts() {
             unsubscribe = await subscribeToChanges(HKWorkoutTypeIdentifier, async () => {
                 try {
@@ -130,12 +164,23 @@ export default function Home() {
                         energyUnit: 'kcal' as EnergyUnit,
                         distanceUnit: 'm' as LengthUnit,
                     });
+
                     setWorkoutAnchor(res.newAnchor);
+
+                    // Filter new running workouts
                     const newRunningWorkouts = res.samples.filter(
-                        (w) => w.workoutActivityType === HKWorkoutActivityType.running
+                        (w: HKWorkout) => w.workoutActivityType === HKWorkoutActivityType.running
                     );
-                    for (const workout of newRunningWorkouts) {
-                        await sendWorkout.mutateAsync(workout);
+
+                    // Filter out already sent workouts
+                    const unsyncedWorkouts = await filterUnsyncedWorkouts(newRunningWorkouts);
+
+                    for (const workout of unsyncedWorkouts) {
+                        if (!user) {
+                            return router.push('/');
+                        }
+                        await sendWorkout.mutateAsync({ workout, userId: user.id });
+                        await addSentWorkoutIds([workout.uuid]);
                         if (notificationsPermission) {
                             await sendWorkoutSuccessNotification(workout);
                         }
@@ -149,31 +194,24 @@ export default function Home() {
                 }
             });
         }
-        if (sendingData) {
+
+        if (sendingData && initialSyncStatus === 'success') {
             subscribeWorkouts();
         }
+
         return () => {
             if (unsubscribe) void unsubscribe();
         };
-    }, [sendingData, workoutAnchor, notificationsPermission, sendWorkout]);
+    }, [sendingData, workoutAnchor, notificationsPermission, initialSyncStatus]);
 
-    useEffect(() => {
+    const toggleDataSending = useCallback(() => {
         if (sendWorkout.isError) {
-            setErrorMessage(
-                sendWorkout.error instanceof Error ? sendWorkout.error.message : 'Unknown error'
-            );
-            setSendingData(false);
-            if (notificationsPermission) {
-                void sendWorkoutErrorNotification(
-                    sendWorkout.error instanceof Error ? sendWorkout.error.message : undefined
-                );
-            }
+            sendWorkout.reset();
         }
-    }, [sendWorkout.isError, notificationsPermission, sendWorkout.error]);
-
-    if (!isReady || loading) {
-        return <Loading />;
-    }
+        setErrorMessage(null);
+        setSendingData(prev => !prev);
+        setInitialSyncStatus(prev => prev === null ? 'pending' : prev);
+    }, [sendWorkout]);
 
     if (error) {
         return (
@@ -194,10 +232,17 @@ export default function Home() {
                     onDismiss={() => setErrorMessage(null)}
                 />
             )}
-            {!errorMessage && sendingData && (
+            {!errorMessage && sendingData && initialSyncStatus === 'success' && (
                 <WarningBanner
                     visible={true}
                     message="Your run workouts are now being tracked"
+                    type="warning"
+                />
+            )}
+            {!errorMessage && sendingData && initialSyncStatus === 'pending' && (
+                <WarningBanner
+                    visible={true}
+                    message="Syncing your existing workouts..."
                     type="warning"
                 />
             )}
@@ -213,16 +258,10 @@ export default function Home() {
     );
 }
 
-const phytColors = {
-    primary: '#00F6FB',
-    accent: '#FE205D',
-    background: '#101010',
-};
-
 const styles = StyleSheet.create({
     container: {
         padding: 16,
-        backgroundColor: phytColors.background,
+        backgroundColor: '#101010', // phyt_bg
         flexGrow: 1,
     },
     content: {
@@ -236,7 +275,7 @@ const styles = StyleSheet.create({
     },
     errorContainer: {
         padding: 16,
-        backgroundColor: phytColors.background,
+        backgroundColor: '#101010',
     },
     errorText: {
         color: '#ff4444',

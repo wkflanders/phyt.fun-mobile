@@ -34,9 +34,9 @@ async function mapWorkoutToPayload(workout: HKWorkout) {
 
 export function useSendWorkout() {
     return useMutation({
-        mutationFn: async (workout: HKWorkout) => {
+        mutationFn: async ({ workout, userId }: { workout: HKWorkout; userId: string; }) => {
             const payload = await mapWorkoutToPayload(workout);
-            const response = await fetch(`${API_URL}/workouts/single`, {
+            const response = await fetch(`${API_URL}/workouts/runs/single/${userId}`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
@@ -52,9 +52,9 @@ export function useSendWorkout() {
 
 export function useSendWorkoutsBatch() {
     return useMutation({
-        mutationFn: async (workouts: HKWorkout[]) => {
+        mutationFn: async ({ workouts, userId }: { workouts: HKWorkout[]; userId: string; }) => {
             const payloads = await Promise.all(workouts.map(mapWorkoutToPayload));
-            const response = await fetch(`${API_URL}/workouts/batch`, {
+            const response = await fetch(`${API_URL}/workouts/runs/batch/${userId}`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: { 'Content-Type': 'application/json' },
