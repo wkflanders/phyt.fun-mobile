@@ -8,6 +8,9 @@ import 'react-native-reanimated';
 import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { baseSepolia } from 'viem/chains';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -40,8 +43,6 @@ const StackLayout = () => {
       </Stack>
     );
   }
-
-  return;
 };
 
 export default function RootLayout() {
@@ -80,20 +81,22 @@ export default function RootLayout() {
   }
 
   return (
-    <PrivyProvider
-      appId={'cm466mv4o01wfkhkse3g9gyhr'}
-      clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
-      supportedChains={[baseSepolia]}
-      config={{
-        embedded: {
-          ethereum: {
-            createOnLogin: 'all-users',
+    <QueryClientProvider client={queryClient}>
+      <PrivyProvider
+        appId={'cm466mv4o01wfkhkse3g9gyhr'}
+        clientId={'client-WY5eJqKxgS2bURn6XZU2CTYFMphvJ8X9he8fipPukPvKH'}
+        supportedChains={[baseSepolia]}
+        config={{
+          embedded: {
+            ethereum: {
+              createOnLogin: 'all-users',
+            }
           }
-        }
-      }}
-    >
-      <StackLayout />
-      <PrivyElements />
-    </PrivyProvider >
+        }}
+      >
+        <StackLayout />
+        <PrivyElements />
+      </PrivyProvider >
+    </QueryClientProvider>
   );
 }
