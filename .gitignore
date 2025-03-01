@@ -43,6 +43,7 @@ ios/Pods/
 ios/DerivedData/
 
 # Android build artifacts
+android
 android/app/build/
 android/build/
 
