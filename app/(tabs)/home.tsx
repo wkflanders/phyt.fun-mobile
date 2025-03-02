@@ -1,4 +1,3 @@
-// app/(tabs)/home.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     StyleSheet,
@@ -27,6 +26,7 @@ import { useSendWorkout, useSendWorkoutsBatch } from '@/hooks/useSendWorkout';
 import { EchoLogo } from '@/components/EchoLogo';
 import { WarningBanner } from '@/components/WarningBanner';
 import { Loading } from '@/components/Loading';
+import { Onboard } from '@/components/Onboard';
 import {
     filterUnsyncedWorkouts,
     addSentWorkoutIds,
@@ -41,8 +41,17 @@ import {
 } from '@/lib/notifications';
 import { router } from 'expo-router';
 
+// User role enum to track whether user is a runner
+enum UserRole {
+    LOADING = 'loading',
+    NOT_RUNNER = 'not_runner',
+    PENDING_RUNNER = 'pending_runner',
+    ACTIVE_RUNNER = 'active_runner',
+}
+
 export default function Home() {
     const { user, isReady } = usePrivy();
+    const [userRole, setUserRole] = useState<UserRole>(UserRole.LOADING);
     const [authorizationStatus, requestAuthorization] = useHealthkitAuthorization([
         HKQuantityTypeIdentifier.heartRate,
         HKQuantityTypeIdentifier.distanceWalkingRunning,
@@ -56,13 +65,68 @@ export default function Home() {
     const [initialSyncStatus, setInitialSyncStatus] = useState<'pending' | 'success' | 'error' | null>(null);
 
     const { workouts, loading, error } = usePastWorkouts({
-        enabled: authorizationStatus === HKAuthorizationRequestStatus.unnecessary,
+        enabled: authorizationStatus === HKAuthorizationRequestStatus.unnecessary
+            && userRole === UserRole.ACTIVE_RUNNER,
     });
     const sendWorkout = useSendWorkout();
     const sendBatch = useSendWorkoutsBatch();
     const isFocused = useIsFocused();
 
-    // All hooks must be defined before any conditional logic
+    const API_URL = process.env.API_URL || 'http://10.0.0.211/api';
+
+    // Check user role on mount
+    useEffect(() => {
+        if (!isReady || !user) {
+            setUserRole(UserRole.LOADING);
+            return;
+        }
+
+        const checkUserRole = async () => {
+            try {
+                // Fetch user data from API
+                const response = await fetch(`${API_URL}/users/${user.id}`, {
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user data');
+                }
+
+                const userData = await response.json();
+
+                if (userData.role === 'runner') {
+                    setUserRole(UserRole.ACTIVE_RUNNER);
+                } else {
+                    // Check if there's a pending runner application
+                    try {
+                        const runnerResponse = await fetch(`${API_URL}/runners/${user.id}/status`, {
+                            credentials: 'include',
+                        });
+
+                        if (runnerResponse.ok) {
+                            const runnerData = await runnerResponse.json();
+
+                            if (runnerData.status === 'pending') {
+                                setUserRole(UserRole.PENDING_RUNNER);
+                            } else {
+                                setUserRole(UserRole.NOT_RUNNER);
+                            }
+                        } else {
+                            setUserRole(UserRole.NOT_RUNNER);
+                        }
+                    } catch (error) {
+                        console.error('Error checking runner status:', error);
+                        setUserRole(UserRole.NOT_RUNNER);
+                    }
+                }
+            } catch (error) {
+                console.error('Error checking user role:', error);
+                setUserRole(UserRole.NOT_RUNNER);
+            }
+        };
+
+        checkUserRole();
+    }, [isReady, user]);
 
     // Request permissions on mount
     useEffect(() => {
@@ -84,8 +148,9 @@ export default function Home() {
     useEffect(() => {
         (async () => {
             if (
-                authorizationStatus === HKAuthorizationRequestStatus.shouldRequest ||
-                authorizationStatus === HKAuthorizationRequestStatus.unknown
+                userRole === UserRole.ACTIVE_RUNNER &&
+                (authorizationStatus === HKAuthorizationRequestStatus.shouldRequest ||
+                    authorizationStatus === HKAuthorizationRequestStatus.unknown)
             ) {
                 try {
                     await requestAuthorization();
@@ -95,16 +160,17 @@ export default function Home() {
                 }
             }
         })();
-    }, [authorizationStatus, requestAuthorization]);
+    }, [authorizationStatus, requestAuthorization, userRole]);
 
     // Initial batch sync of past workouts
     useEffect(() => {
         if (
+            userRole === UserRole.ACTIVE_RUNNER &&
             authorizationStatus === HKAuthorizationRequestStatus.unnecessary &&
             workouts.length > 0 &&
             sendingData &&
             initialSyncStatus === 'pending' &&
-            user // Check for user here instead of returning early
+            user
         ) {
             (async () => {
                 try {
@@ -140,14 +206,14 @@ export default function Home() {
                 }
             })();
         }
-    }, [authorizationStatus, workouts, sendingData, initialSyncStatus, user, sendBatch, notificationsPermission]);
+    }, [authorizationStatus, workouts, sendingData, initialSyncStatus, user, sendBatch, notificationsPermission, userRole]);
 
     // Subscribe to new workouts
     useEffect(() => {
         let unsubscribe: (() => Promise<boolean>) | undefined;
 
         async function subscribeWorkouts() {
-            if (!user) return; // Check for user here instead of returning early
+            if (!user || userRole !== UserRole.ACTIVE_RUNNER) return;
 
             unsubscribe = await subscribeToChanges(HKWorkoutTypeIdentifier, async () => {
                 try {
@@ -192,7 +258,7 @@ export default function Home() {
         return () => {
             if (unsubscribe) void unsubscribe();
         };
-    }, [sendingData, workoutAnchor, notificationsPermission, initialSyncStatus, user, sendWorkout]);
+    }, [sendingData, workoutAnchor, notificationsPermission, initialSyncStatus, user, sendWorkout, userRole]);
 
     const toggleDataSending = useCallback(() => {
         if (sendWorkout.isError) {
@@ -203,14 +269,37 @@ export default function Home() {
         setInitialSyncStatus(prev => prev === null ? 'pending' : prev);
     }, [sendWorkout]);
 
+    const handleRunnerOnboardingComplete = useCallback(() => {
+        setUserRole(UserRole.PENDING_RUNNER);
+    }, []);
+
     // Render different UI states based on conditions
-    if (!isReady || loading) {
+    if (!isReady || loading || userRole === UserRole.LOADING) {
         return <Loading />;
     }
 
     if (isReady && !user) {
         router.push('/');
         return <Loading />; // Return a placeholder while navigation happens
+    }
+
+    if (userRole === UserRole.NOT_RUNNER) {
+        return <Onboard onComplete={handleRunnerOnboardingComplete} />;
+    }
+
+    if (userRole === UserRole.PENDING_RUNNER) {
+        return (
+            <View style={styles.pendingContainer}>
+                <Text style={styles.pendingTitle}>Application Pending</Text>
+                <Text style={styles.pendingText}>
+                    Your application to become a runner is being reviewed by our team.
+                    You'll receive access as soon as it's approved.
+                </Text>
+                <Text style={styles.pendingSubtext}>
+                    Thank you for your patience!
+                </Text>
+            </View>
+        );
     }
 
     if (error) {
@@ -281,5 +370,32 @@ const styles = StyleSheet.create({
     infoText: {
         color: '#fff',
         marginTop: 16,
+    },
+    pendingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 24,
+        backgroundColor: '#101010',
+    },
+    pendingTitle: {
+        fontFamily: 'Inter-Bold',
+        color: 'white',
+        fontSize: 28,
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    pendingText: {
+        fontFamily: 'Inter-Regular',
+        color: 'white',
+        fontSize: 18,
+        textAlign: 'center',
+        marginBottom: 24,
+    },
+    pendingSubtext: {
+        fontFamily: 'Inter-Regular',
+        fontSize: 16,
+        color: '#777798', // phyt_text_secondary
+        textAlign: 'center',
     },
 });

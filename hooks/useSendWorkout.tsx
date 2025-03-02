@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import type { HKWorkout } from '@kingstinct/react-native-healthkit';
 import { getWorkoutRoutes } from '@kingstinct/react-native-healthkit';
 
-const API_URL = process.env.API_URL || 'https://localhost:4000/api';
+const API_URL = process.env.API_URL || 'https://10.0.0.211/api';
 
 async function mapWorkoutToPayload(workout: HKWorkout) {
     let gpsRouteData;

@@ -1,22 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useLayoutEffect } from 'react';
 import { StyleSheet, View, Image, Modal, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { images } from '@/constants';
 import {
     useHealthkitAuthorization,
-    queryWorkoutSamplesWithAnchor,
-    subscribeToChanges,
-    HKWorkoutTypeIdentifier,
-    HKWorkoutActivityType,
     HKQuantityTypeIdentifier,
-    HKAuthorizationRequestStatus,
-    HKWorkoutRouteTypeIdentifier
-} from '@kingstinct/react-native-healthkit'; import { usePrivy } from '@privy-io/expo';
+    HKWorkoutRouteTypeIdentifier,
+    HKWorkoutTypeIdentifier
+} from '@kingstinct/react-native-healthkit';
+import { usePrivy } from '@privy-io/expo';
 
 export default function Settings() {
     const { logout } = usePrivy();
     const [isModalVisible, setModalVisible] = useState(true);
+    const [isNavigating, setIsNavigating] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
     const [authorizationStatus, requestAuthorization] = useHealthkitAuthorization([
         HKQuantityTypeIdentifier.heartRate,
         HKQuantityTypeIdentifier.distanceWalkingRunning,
@@ -26,25 +25,51 @@ export default function Settings() {
     const router = useRouter();
 
     useFocusEffect(
-        React.useCallback(() => {
+        useCallback(() => {
             setModalVisible(true);
+            // Reset navigation flags on focus
+            setIsNavigating(false);
+            setLoggingOut(false);
         }, [])
     );
 
-    const handleClose = () => {
-        setModalVisible(false);
-        router.replace('/(tabs)/home');
-    };
+    // Handle navigation after state updates are complete
+    useLayoutEffect(() => {
+        if (isNavigating) {
+            router.replace('/(tabs)/home');
+            setIsNavigating(false);
+        }
+    }, [isNavigating, router]);
 
-    const handleLogout = () => {
+    // Handle logout after state updates are complete
+    useLayoutEffect(() => {
+        if (loggingOut) {
+            logout();
+            setLoggingOut(false);
+        }
+    }, [loggingOut, logout]);
+
+    const handleClose = useCallback(() => {
         setModalVisible(false);
-        logout();
-    };
+        // Set flag for navigation instead of immediate navigation
+        setIsNavigating(true);
+    }, []);
+
+    const handleLogout = useCallback(() => {
+        setModalVisible(false);
+        // Set flag for logout instead of immediate logout
+        setLoggingOut(true);
+    }, []);
 
     return (
         <View style={styles.container}>
             <Image source={images.P_logo} style={styles.logo} resizeMode="contain" />
-            <Modal visible={isModalVisible} transparent animationType="slide">
+            <Modal
+                visible={isModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setModalVisible(false)}
+            >
                 <View style={styles.fullScreenModal}>
                     <View style={styles.headerContainer}>
                         <Text style={styles.modalTitleTop}>Settings</Text>
