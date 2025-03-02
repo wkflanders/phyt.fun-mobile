@@ -62,13 +62,7 @@ export default function Home() {
     const sendBatch = useSendWorkoutsBatch();
     const isFocused = useIsFocused();
 
-    if (!isReady || loading) {
-        return <Loading />;
-    }
-
-    if (isReady && !user) {
-        return router.push('/');
-    }
+    // All hooks must be defined before any conditional logic
 
     // Request permissions on mount
     useEffect(() => {
@@ -109,7 +103,8 @@ export default function Home() {
             authorizationStatus === HKAuthorizationRequestStatus.unnecessary &&
             workouts.length > 0 &&
             sendingData &&
-            initialSyncStatus === 'pending'
+            initialSyncStatus === 'pending' &&
+            user // Check for user here instead of returning early
         ) {
             (async () => {
                 try {
@@ -119,10 +114,6 @@ export default function Home() {
                     if (unsyncedWorkouts.length === 0) {
                         setInitialSyncStatus('success');
                         return;
-                    }
-
-                    if (!user) {
-                        return router.push('/');
                     }
 
                     // Send workouts
@@ -149,13 +140,15 @@ export default function Home() {
                 }
             })();
         }
-    }, [authorizationStatus, workouts, sendingData, initialSyncStatus]);
+    }, [authorizationStatus, workouts, sendingData, initialSyncStatus, user, sendBatch, notificationsPermission]);
 
     // Subscribe to new workouts
     useEffect(() => {
         let unsubscribe: (() => Promise<boolean>) | undefined;
 
         async function subscribeWorkouts() {
+            if (!user) return; // Check for user here instead of returning early
+
             unsubscribe = await subscribeToChanges(HKWorkoutTypeIdentifier, async () => {
                 try {
                     const res = await queryWorkoutSamplesWithAnchor({
@@ -176,9 +169,6 @@ export default function Home() {
                     const unsyncedWorkouts = await filterUnsyncedWorkouts(newRunningWorkouts);
 
                     for (const workout of unsyncedWorkouts) {
-                        if (!user) {
-                            return router.push('/');
-                        }
                         await sendWorkout.mutateAsync({ workout, userId: user.id });
                         await addSentWorkoutIds([workout.uuid]);
                         if (notificationsPermission) {
@@ -202,7 +192,7 @@ export default function Home() {
         return () => {
             if (unsubscribe) void unsubscribe();
         };
-    }, [sendingData, workoutAnchor, notificationsPermission, initialSyncStatus]);
+    }, [sendingData, workoutAnchor, notificationsPermission, initialSyncStatus, user, sendWorkout]);
 
     const toggleDataSending = useCallback(() => {
         if (sendWorkout.isError) {
@@ -212,6 +202,16 @@ export default function Home() {
         setSendingData(prev => !prev);
         setInitialSyncStatus(prev => prev === null ? 'pending' : prev);
     }, [sendWorkout]);
+
+    // Render different UI states based on conditions
+    if (!isReady || loading) {
+        return <Loading />;
+    }
+
+    if (isReady && !user) {
+        router.push('/');
+        return <Loading />; // Return a placeholder while navigation happens
+    }
 
     if (error) {
         return (
@@ -250,9 +250,6 @@ export default function Home() {
                 <TouchableOpacity onPress={toggleDataSending}>
                     <EchoLogo active={isFocused && sendingData} style={styles.logo} />
                 </TouchableOpacity>
-                <Text style={styles.infoText}>
-                    {sendingData ? 'Sending workouts' : 'Not sending workouts'}
-                </Text>
             </View>
         </ScrollView>
     );
@@ -268,6 +265,7 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingTop: 60,
         alignItems: 'center',
+        justifyContent: 'center'
     },
     logo: {
         width: 200,
