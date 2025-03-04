@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import React from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
+import { colors } from '@/constants';
 
 export default function TabLayout() {
   return (
@@ -9,7 +10,7 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: [styles.tabBar],
-        tabBarActiveTintColor: phytColors.primary, // Active tab color
+        tabBarActiveTintColor: colors.primary, // Active tab color
         tabBarInactiveTintColor: '#fff', // Inactive tab color
       }}
     >
@@ -30,18 +31,6 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-// Define color variables using your `phyt_*` colors
-const phytColors = {
-  primary: '#00F6FB', // phyt_blue
-  accent: '#FE205D', // phyt_red
-  background: '#101010', // phyt_bg
-  textSecondary: '#777798', // phyt_text_secondary
-  formBg: '#13122A', // phyt_form
-  formPlaceholder: '#58587B', // phyt_form_placeholder
-  formBorder: '#5454BF', // phyt_form_border
-  formText: '#ff00f7', // phyt_form_text
-};
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -81,7 +70,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: 'Inter-SemiBold',
     fontSize: 20, // text-xl
-    color: phytColors.textSecondary,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: 16, // mt-4
   },
@@ -99,7 +88,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 20,
     borderRadius: 12,
-    backgroundColor: phytColors.accent, // Use red for buttons
+    backgroundColor: colors.accent, // Use red for buttons
   },
   buttonText: {
     fontFamily: 'Inter-SemiBold',

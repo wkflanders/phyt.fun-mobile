@@ -24,3 +24,20 @@ export const Colors = {
     tabIconSelected: tintColorDark,
   },
 };
+
+const PhytColors = {
+  primary: '#00F6FB', // phyt_blue
+  accent: '#FE205D',  // phyt_red
+  background: '#101010', // phyt_bg
+  textSecondary: '#777798', // phyt_text_secondary
+  formBg: '#13122A', // phyt_form
+  formPlaceholder: '#58587B', // phyt_form_placeholder
+  formBorder: '#5454BF', // phyt_form_border
+  formText: '#ff00f7', // phyt_form_text
+  destructive: '#ef4444', // For errors
+  success: '#10b981', // For success states
+  info: '#3b82f6', // For info states
+  warning: '#f59e0b', // For warnings
+};
+
+export default PhytColors;

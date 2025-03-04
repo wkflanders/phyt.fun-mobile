@@ -2,7 +2,7 @@ import React, { useState, useCallback, useLayoutEffect } from 'react';
 import { StyleSheet, View, Image, Modal, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { images } from '@/constants';
+import { images, colors } from '@/constants';
 import {
     useHealthkitAuthorization,
     HKQuantityTypeIdentifier,
@@ -92,16 +92,10 @@ export default function Settings() {
     );
 }
 
-const phytColors = {
-    primary: '#00F6FB', // phyt_blue
-    accent: '#FE205D',  // phyt_red
-    background: '#101010', // phyt_bg
-};
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: phytColors.background,
+        backgroundColor: colors.background,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -130,7 +124,7 @@ const styles = StyleSheet.create({
         textAlign: 'left',
     },
     closeButton: {
-        backgroundColor: phytColors.accent,
+        backgroundColor: colors.accent,
         padding: 10,
         borderRadius: 20,
     },
@@ -153,7 +147,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     logoutButton: {
-        backgroundColor: phytColors.accent,
+        backgroundColor: colors.accent,
         padding: 12,
         borderRadius: 8,
         justifyContent: 'center',
