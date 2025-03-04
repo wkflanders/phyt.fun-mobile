@@ -33,7 +33,7 @@ interface OnboardProps {
     onComplete: () => void;
 }
 
-const API_URL = process.env.API_URL || 'http://10.0.0.211/api';
+const API_URL = process.env.API_URL || 'http://10.0.0.211:4000/api';
 
 export const Onboard = ({ onComplete }: OnboardProps) => {
     const { user } = usePrivy();
