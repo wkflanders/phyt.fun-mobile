@@ -19,7 +19,7 @@ enum UserStatus {
 const API_URL = process.env.API_URL || 'http://10.0.0.211:4000/api';
 
 export default function Index() {
-    const { isReady, user } = usePrivy();
+    const { isReady, user, getAccessToken } = usePrivy();
     const [userStatus, setUserStatus] = useState<UserStatus>(UserStatus.LOADING);
 
     const { login } = useLoginWithOAuth({
@@ -52,11 +52,15 @@ export default function Index() {
 
     const checkUserStatus = async () => {
         if (!user) return;
+        const token = await getAccessToken();
 
         try {
             // Fetch user data from API
             const response = await fetch(`${API_URL}/users/${user.id}`, {
-                credentials: 'include',
+                method: 'GET',
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                }
             });
 
             if (!response.ok) {
@@ -71,7 +75,10 @@ export default function Index() {
             } else {
                 // Check if there's a pending runner application
                 const runnerResponse = await fetch(`${API_URL}/runners/${user.id}/status`, {
-                    credentials: 'include',
+                    method: 'GET',
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
                 });
 
                 if (runnerResponse.ok) {

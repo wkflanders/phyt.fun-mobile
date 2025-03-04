@@ -50,7 +50,7 @@ enum UserRole {
 }
 
 export default function Home() {
-    const { user, isReady } = usePrivy();
+    const { user, isReady, getAccessToken } = usePrivy();
     const [userRole, setUserRole] = useState<UserRole>(UserRole.LOADING);
     const [authorizationStatus, requestAuthorization] = useHealthkitAuthorization([
         HKQuantityTypeIdentifier.heartRate,
@@ -82,10 +82,14 @@ export default function Home() {
         }
 
         const checkUserRole = async () => {
+            const token = await getAccessToken();
             try {
                 // Fetch user data from API
                 const response = await fetch(`${API_URL}/users/${user.id}`, {
-                    credentials: 'include',
+                    method: 'GET',
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
                 });
 
                 if (!response.ok) {
@@ -101,7 +105,10 @@ export default function Home() {
                     // Check if there's a pending runner application
                     try {
                         const runnerResponse = await fetch(`${API_URL}/runners/${user.id}/status`, {
-                            credentials: 'include',
+                            method: 'GET',
+                            headers: {
+                                "Authorization": `Bearer ${token}`
+                            }
                         });
 
                         if (runnerResponse.ok) {

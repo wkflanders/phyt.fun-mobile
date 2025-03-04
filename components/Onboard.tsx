@@ -36,7 +36,7 @@ interface OnboardProps {
 const API_URL = process.env.API_URL || 'http://10.0.0.211:4000/api';
 
 export const Onboard = ({ onComplete }: OnboardProps) => {
-    const { user } = usePrivy();
+    const { user, getAccessToken } = usePrivy();
     const [isLoading, setIsLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -62,9 +62,13 @@ export const Onboard = ({ onComplete }: OnboardProps) => {
         if (!user?.id) return;
 
         const checkRunnerStatus = async () => {
+            const token = await getAccessToken();
             try {
                 const response = await fetch(`${API_URL}/runners/${user.id}/status`, {
-                    credentials: 'include',
+                    method: 'GET',
+                    headers: {
+                        "Authorization": `Bearer ${token}`
+                    }
                 });
 
                 if (response.ok) {
@@ -87,6 +91,8 @@ export const Onboard = ({ onComplete }: OnboardProps) => {
             setError('User not found');
             return;
         }
+
+        const token = await getAccessToken();
 
         try {
             setIsLoading(true);
@@ -118,10 +124,11 @@ export const Onboard = ({ onComplete }: OnboardProps) => {
             const response = await fetch(`${API_URL}/workouts/runs/apply/${user.id}`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+
                 },
                 body: JSON.stringify(runningWorkouts),
-                credentials: 'include',
             });
 
             const data = await response.text();

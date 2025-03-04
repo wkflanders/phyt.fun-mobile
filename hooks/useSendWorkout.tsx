@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import type { HKWorkout } from '@kingstinct/react-native-healthkit';
 import { getWorkoutRoutes } from '@kingstinct/react-native-healthkit';
+import { usePrivy } from '@privy-io/expo';
 
 const API_URL = process.env.API_URL || 'https://10.0.0.211:4000/api';
 
@@ -33,13 +34,18 @@ async function mapWorkoutToPayload(workout: HKWorkout) {
 }
 
 export function useSendWorkout() {
+    const { getAccessToken } = usePrivy();
+
     return useMutation({
         mutationFn: async ({ workout, userId }: { workout: HKWorkout; userId: string; }) => {
+            const token = await getAccessToken();
             const payload = await mapWorkoutToPayload(workout);
             const response = await fetch(`${API_URL}/workouts/runs/single/${userId}`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(payload),
             });
             if (!response.ok) {
@@ -51,13 +57,18 @@ export function useSendWorkout() {
 }
 
 export function useSendWorkoutsBatch() {
+    const { getAccessToken } = usePrivy();
+
     return useMutation({
         mutationFn: async ({ workouts, userId }: { workouts: HKWorkout[]; userId: string; }) => {
+            const token = await getAccessToken();
             const payloads = await Promise.all(workouts.map(mapWorkoutToPayload));
             const response = await fetch(`${API_URL}/workouts/runs/batch/${userId}`, {
                 method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify(payloads),
             });
             if (!response.ok) {
