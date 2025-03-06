@@ -28,7 +28,8 @@ interface UseHealthKitResult {
     error: Error | null;
     getRunningWorkouts: (limit?: number, ascending?: boolean) => Promise<HKWorkout[]>;
     getWorkoutWithAnchor: (anchor: string, limit?: number) => Promise<{
-        workouts: HKWorkout[];
+        samples: HKWorkout[];
+        deletedSamples: HKWorkout[];
         newAnchor: string;
     }>;
     mapWorkoutToPayload: (workout: HKWorkout) => Promise<any>;
@@ -76,7 +77,8 @@ export function useHealthKit(): UseHealthKitResult {
         } catch (error) {
             setError(error as Error);
             return {
-                workouts: [],
+                samples: [],
+                deletedSamples: [],
                 newAnchor: anchor,
             };
         }
