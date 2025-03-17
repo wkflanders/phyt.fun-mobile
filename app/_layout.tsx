@@ -89,7 +89,7 @@ export default function RootLayout() {
         config={{
           embedded: {
             ethereum: {
-              createOnLogin: 'all-users',
+              createOnLogin: 'off',
             }
           }
         }}
